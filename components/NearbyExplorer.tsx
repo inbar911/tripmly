@@ -9,13 +9,13 @@ import type { TKey } from '@/lib/i18n';
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false, loading: () => <div className="flex h-full items-center justify-center text-sm text-slate-400">…</div> });
 
-const CATEGORIES: { key: string; overpass: string; labelKey: TKey }[] = [
-  { key: 'restaurant', overpass: 'amenity=restaurant', labelKey: 'nearby.cat.eat' },
-  { key: 'attraction', overpass: 'tourism=attraction', labelKey: 'nearby.cat.attractions' },
-  { key: 'park', overpass: 'leisure=park', labelKey: 'nearby.cat.parks' },
-  { key: 'cafe', overpass: 'amenity=cafe', labelKey: 'nearby.cat.cafes' },
-  { key: 'bar', overpass: 'amenity=bar', labelKey: 'nearby.cat.bars' },
-  { key: 'lodging', overpass: 'tourism=hotel', labelKey: 'nearby.cat.lodging' }
+const CATEGORIES: { key: string; labelKey: TKey }[] = [
+  { key: 'restaurant', labelKey: 'nearby.cat.eat' },
+  { key: 'attraction', labelKey: 'nearby.cat.attractions' },
+  { key: 'park', labelKey: 'nearby.cat.parks' },
+  { key: 'cafe', labelKey: 'nearby.cat.cafes' },
+  { key: 'bar', labelKey: 'nearby.cat.bars' },
+  { key: 'lodging', labelKey: 'nearby.cat.lodging' }
 ];
 
 export default function NearbyExplorer() {
@@ -41,31 +41,11 @@ export default function NearbyExplorer() {
   useEffect(() => {
     if (!coords) return;
     setLoading(true);
-    const cat = CATEGORIES.find(c => c.key === category)!;
-    const query = `[out:json][timeout:15];(node[${cat.overpass}](around:3000,${coords.lat},${coords.lng});way[${cat.overpass}](around:3000,${coords.lat},${coords.lng}););out center 30;`;
     const ctrl = new AbortController();
-    fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: ctrl.signal
-    })
+    fetch(`/api/places?lat=${coords.lat}&lng=${coords.lng}&cat=${category}`, { signal: ctrl.signal })
       .then(r => r.json())
-      .then(data => {
-        const list: LeafletPlace[] = (data.elements || [])
-          .filter((e: any) => e.tags?.name)
-          .map((e: any) => ({
-            id: e.id,
-            name: e.tags.name,
-            lat: e.lat ?? e.center?.lat,
-            lng: e.lon ?? e.center?.lon,
-            tags: e.tags
-          }))
-          .filter((p: LeafletPlace) => p.lat && p.lng)
-          .slice(0, 25);
-        setPlaces(list);
-      })
-      .catch(() => setPlaces([]))
+      .then(data => setPlaces(data.places || []))
+      .catch((e) => { if (e.name !== 'AbortError') setPlaces([]); })
       .finally(() => setLoading(false));
     return () => ctrl.abort();
   }, [coords, category]);
