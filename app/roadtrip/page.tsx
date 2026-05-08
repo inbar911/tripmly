@@ -1,9 +1,10 @@
+'use client';
 import RoadTripPlanner from '@/components/RoadTripPlanner';
 import { Truck } from 'lucide-react';
-
-export const metadata = { title: 'Road Trip — Trip.ly' };
+import { useI18n } from '@/components/I18nProvider';
 
 export default function RoadTripPage() {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -11,8 +12,8 @@ export default function RoadTripPage() {
           <Truck className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Road Trip</h1>
-          <p className="text-sm text-slate-600">Plan a jeep trip from your location with AI</p>
+          <h1 className="text-2xl font-bold">{t('road.title')}</h1>
+          <p className="text-sm text-slate-600">{t('road.subtitle')}</p>
         </div>
       </div>
       <RoadTripPlanner />

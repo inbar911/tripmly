@@ -2,16 +2,18 @@
 import Link from 'next/link';
 import { Plane, MapPin, Truck, LayoutDashboard, Sparkles } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-
-const links = [
-  { href: '/flights', label: 'Flights', icon: Plane },
-  { href: '/nearby', label: 'Nearby', icon: MapPin },
-  { href: '/roadtrip', label: 'Road Trip', icon: Truck },
-  { href: '/dashboard', label: 'My Trips', icon: LayoutDashboard }
-];
+import { useI18n } from './I18nProvider';
+import LangToggle from './LangToggle';
 
 export default function Navbar() {
   const path = usePathname();
+  const { t } = useI18n();
+  const links = [
+    { href: '/flights', label: t('nav.flights'), icon: Plane },
+    { href: '/nearby', label: t('nav.nearby'), icon: MapPin },
+    { href: '/roadtrip', label: t('nav.roadtrip'), icon: Truck },
+    { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard }
+  ];
   return (
     <header className="sticky top-0 z-30 border-b border-slate-100 glass">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -25,9 +27,12 @@ export default function Navbar() {
             </Link>
           ))}
         </nav>
-        <Link href="/auth" className="btn-primary !py-2 !px-4 text-sm">Sign in</Link>
+        <div className="flex items-center gap-1">
+          <LangToggle />
+          <Link href="/auth" className="btn-primary !py-2 !px-4 text-sm">{t('cta.signin')}</Link>
+        </div>
       </div>
-      <nav className="flex items-center justify-around border-t border-slate-100 bg-white/80 px-2 py-2 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-slate-100 bg-white/95 px-2 py-2 backdrop-blur md:hidden">
         {links.map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href} className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-1 text-xs font-medium ${path === href ? 'text-brand-700' : 'text-slate-500'}`}>
             <Icon className="h-5 w-5" /> {label}

@@ -1,9 +1,10 @@
+'use client';
 import NearbyExplorer from '@/components/NearbyExplorer';
 import { MapPin } from 'lucide-react';
-
-export const metadata = { title: 'Nearby — Trip.ly' };
+import { useI18n } from '@/components/I18nProvider';
 
 export default function NearbyPage() {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -11,8 +12,8 @@ export default function NearbyPage() {
           <MapPin className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Nearby</h1>
-          <p className="text-sm text-slate-600">Activities, food & places around your current location</p>
+          <h1 className="text-2xl font-bold">{t('nearby.title')}</h1>
+          <p className="text-sm text-slate-600">{t('nearby.subtitle')}</p>
         </div>
       </div>
       <NearbyExplorer />

@@ -1,9 +1,10 @@
+'use client';
 import FlightSearch from '@/components/FlightSearch';
 import { Plane } from 'lucide-react';
-
-export const metadata = { title: 'Flights — Trip.ly' };
+import { useI18n } from '@/components/I18nProvider';
 
 export default function FlightsPage() {
+  const { t } = useI18n();
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -11,8 +12,8 @@ export default function FlightsPage() {
           <Plane className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Flights</h1>
-          <p className="text-sm text-slate-600">150 countries · El Al, Arkia, Israir + global carriers</p>
+          <h1 className="text-2xl font-bold">{t('flights.title')}</h1>
+          <p className="text-sm text-slate-600">{t('flights.subtitle')}</p>
         </div>
       </div>
       <FlightSearch />

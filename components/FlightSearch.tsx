@@ -2,36 +2,41 @@
 import { useMemo, useState } from 'react';
 import { COUNTRIES } from '@/lib/countries';
 import { AIRLINES, META_SEARCH, type SearchParams } from '@/lib/airlines';
-import { ExternalLink, Plane, Save } from 'lucide-react';
+import { ExternalLink, Save } from 'lucide-react';
 import ChatBot from './ChatBot';
+import { useI18n } from './I18nProvider';
 
 export default function FlightSearch() {
+  const { t, lang } = useI18n();
+  const today = new Date();
+  const dPlus = (n: number) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + n).toISOString().slice(0, 10);
   const [origin, setOrigin] = useState('TLV');
   const [destination, setDestination] = useState('JFK');
-  const [depart, setDepart] = useState(new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10));
-  const [ret, setRet] = useState(new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10));
+  const [depart, setDepart] = useState(dPlus(14));
+  const [ret, setRet] = useState(dPlus(21));
   const [pax, setPax] = useState(1);
   const [cabin, setCabin] = useState<'economy' | 'business' | 'first'>('economy');
   const [saving, setSaving] = useState(false);
 
   const params: SearchParams = { origin, destination, depart, return: ret, passengers: pax, cabin };
   const meta = useMemo(() => META_SEARCH(params), [origin, destination, depart, ret, pax, cabin]);
+  const datesValid = depart && ret && depart <= ret;
+  const sameAirport = origin === destination;
 
   async function saveTrip() {
+    if (sameAirport) { alert(lang === 'he' ? 'בחרו יעדים שונים' : 'Pick different airports'); return; }
+    if (!datesValid) { alert(lang === 'he' ? 'בדקו את התאריכים' : 'Check dates'); return; }
     setSaving(true);
     try {
       const res = await fetch('/api/save-trip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'flight',
-          title: `${origin} → ${destination}`,
-          payload: params
-        })
+        body: JSON.stringify({ type: 'flight', title: `${origin} → ${destination}`, payload: params })
       });
       const j = await res.json();
-      if (j.error) alert(j.error);
-      else alert('Saved!');
+      if (res.status === 401) alert(lang === 'he' ? 'התחברו תחילה' : 'Sign in first');
+      else if (j.error) alert(j.error);
+      else alert(t('common.saved'));
     } finally {
       setSaving(false);
     }
@@ -42,37 +47,38 @@ export default function FlightSearch() {
       <div className="space-y-4">
         <div className="card">
           <div className="grid gap-3 md:grid-cols-2">
-            <Field label="From">
+            <Field label={t('flights.from')}>
               <select className="input" value={origin} onChange={(e) => setOrigin(e.target.value)}>
                 {COUNTRIES.map(c => <option key={c.code} value={c.iata}>{c.emoji} {c.name} ({c.iata})</option>)}
               </select>
             </Field>
-            <Field label="To">
+            <Field label={t('flights.to')}>
               <select className="input" value={destination} onChange={(e) => setDestination(e.target.value)}>
                 {COUNTRIES.map(c => <option key={c.code} value={c.iata}>{c.emoji} {c.name} ({c.iata})</option>)}
               </select>
             </Field>
-            <Field label="Depart"><input type="date" className="input" value={depart} onChange={(e) => setDepart(e.target.value)} /></Field>
-            <Field label="Return"><input type="date" className="input" value={ret} onChange={(e) => setRet(e.target.value)} /></Field>
-            <Field label="Passengers">
-              <input type="number" min={1} max={9} className="input" value={pax} onChange={(e) => setPax(Number(e.target.value))} />
+            <Field label={t('flights.depart')}><input type="date" min={dPlus(0)} className="input" value={depart} onChange={(e) => setDepart(e.target.value)} /></Field>
+            <Field label={t('flights.return')}><input type="date" min={depart} className="input" value={ret} onChange={(e) => setRet(e.target.value)} /></Field>
+            <Field label={t('flights.passengers')}>
+              <input type="number" min={1} max={9} className="input" value={pax} onChange={(e) => setPax(Math.max(1, Math.min(9, Number(e.target.value) || 1)))} />
             </Field>
-            <Field label="Cabin">
+            <Field label={t('flights.cabin')}>
               <select className="input" value={cabin} onChange={(e) => setCabin(e.target.value as any)}>
-                <option value="economy">Economy</option>
-                <option value="business">Business</option>
-                <option value="first">First</option>
+                <option value="economy">{t('flights.cabin.economy')}</option>
+                <option value="business">{t('flights.cabin.business')}</option>
+                <option value="first">{t('flights.cabin.first')}</option>
               </select>
             </Field>
           </div>
-          <button onClick={saveTrip} disabled={saving} className="btn-ghost mt-4 w-full">
-            <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save trip'}
+          {sameAirport && <p className="mt-2 text-xs text-red-600">{lang === 'he' ? 'בחרו שני יעדים שונים' : 'Pick two different airports'}</p>}
+          <button onClick={saveTrip} disabled={saving || sameAirport || !datesValid} className="btn-ghost mt-4 w-full disabled:opacity-50">
+            <Save className="h-4 w-4" /> {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
 
         <div className="card">
-          <h3 className="font-bold">Book on airline sites</h3>
-          <p className="text-xs text-slate-500">Real deep-links — opens the airline's official booking page with your search.</p>
+          <h3 className="font-bold">{t('flights.book')}</h3>
+          <p className="text-xs text-slate-500">{t('flights.bookNote')}</p>
           <div className="mt-3 grid gap-2">
             {AIRLINES.map(a => (
               <a key={a.code} href={a.buildSearchUrl(params)} target="_blank" rel="noreferrer"
@@ -82,7 +88,7 @@ export default function FlightSearch() {
               </a>
             ))}
           </div>
-          <h4 className="mt-4 font-bold">Compare prices</h4>
+          <h4 className="mt-4 font-bold">{t('flights.compare')}</h4>
           <div className="mt-2 grid gap-2 md:grid-cols-3">
             <a href={meta.google} target="_blank" rel="noreferrer" className="btn-ghost !py-2 text-xs">Google Flights</a>
             <a href={meta.skyscanner} target="_blank" rel="noreferrer" className="btn-ghost !py-2 text-xs">Skyscanner</a>
@@ -92,8 +98,10 @@ export default function FlightSearch() {
       </div>
 
       <ChatBot
-        systemPrompt={`You are Trip.ly's flight planner. Help the user choose destinations among 150 countries, suggest itineraries, best seasons, layover tips, and budget estimates. Reply concisely with bullet points. When the user picks a route, tell them to use the booking buttons on the left.`}
-        initialAssistantMessage={`Hi! I see you're searching ${origin} → ${destination} on ${depart}. Want suggestions for activities, layovers, or alternative dates? Or pick a different route?`}
+        systemPrompt={`You are Trip.ly's flight planner. Help the user choose destinations among 150 countries, suggest itineraries, best seasons, layover tips, and budget estimates. Reply concisely with short bullets. When the user picks a route, tell them to use the booking buttons on the side.`}
+        initialAssistantMessage={lang === 'he'
+          ? `שלום! אני רואה שאתם מחפשים ${origin} → ${destination} בתאריך ${depart}. רוצים הצעות לפעילויות, חניית ביניים או תאריכים חלופיים?`
+          : `Hi! I see you're searching ${origin} → ${destination} on ${depart}. Want suggestions for activities, layovers, or alternative dates?`}
         context={params}
       />
     </div>
