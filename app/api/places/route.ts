@@ -27,30 +27,38 @@ export async function GET(req: Request) {
   ]).join('');
   const query = `[out:json][timeout:20];(${parts});out center 40;`;
 
-  try {
-    const r = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Tripmly/1.0 (https://tripmly.vercel.app)'
-      },
-      body: `data=${encodeURIComponent(query)}`
-    });
-    if (!r.ok) return NextResponse.json({ places: [], error: `Overpass ${r.status}` }, { status: 502 });
-    const data = await r.json();
-    const places = (data.elements || [])
-      .filter((e: any) => e.tags?.name)
-      .map((e: any) => ({
-        id: e.id,
-        name: e.tags.name,
-        lat: e.lat ?? e.center?.lat,
-        lng: e.lon ?? e.center?.lon,
-        tags: e.tags
-      }))
-      .filter((p: any) => p.lat && p.lng)
-      .slice(0, 30);
-    return NextResponse.json({ places }, { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=600' } });
-  } catch (e: any) {
-    return NextResponse.json({ places: [], error: e?.message || 'fetch failed' }, { status: 500 });
+  const MIRRORS = [
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter'
+  ];
+
+  for (const url of MIRRORS) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Tripmly/1.0 (https://tripmly.vercel.app)'
+        },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(20000)
+      });
+      if (!r.ok) continue;
+      const data = await r.json();
+      const places = (data.elements || [])
+        .filter((e: any) => e.tags?.name)
+        .map((e: any) => ({
+          id: e.id,
+          name: e.tags.name,
+          lat: e.lat ?? e.center?.lat,
+          lng: e.lon ?? e.center?.lon,
+          tags: e.tags
+        }))
+        .filter((p: any) => p.lat && p.lng)
+        .slice(0, 30);
+      return NextResponse.json({ places }, { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=600' } });
+    } catch {}
   }
+  return NextResponse.json({ places: [], error: 'All mirrors failed' }, { status: 502 });
 }
