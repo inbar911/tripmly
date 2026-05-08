@@ -1,6 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, Bot, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useI18n } from './I18nProvider';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -8,24 +10,36 @@ export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 export default function ChatBot({
   systemPrompt,
   initialAssistantMessage,
-  context
+  context,
+  height = 560,
+  autoSendMessage
 }: {
   systemPrompt: string;
   initialAssistantMessage: string;
   context?: Record<string, any>;
+  height?: number;
+  autoSendMessage?: string;
 }) {
   const { t, lang } = useI18n();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: initialAssistantMessage }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    autoSendMessage ? [] : [{ role: 'assistant', content: initialAssistantMessage }]
+  );
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const sentAuto = useRef(false);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  async function send() {
-    const text = input.trim();
+  useEffect(() => {
+    if (autoSendMessage && !sentAuto.current) {
+      sentAuto.current = true;
+      send(autoSendMessage);
+    }
+  }, [autoSendMessage]);
+
+  async function send(textOverride?: string) {
+    const text = (textOverride ?? input).trim();
     if (!text || busy) return;
     const userMsg: ChatMessage = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
@@ -48,7 +62,7 @@ export default function ChatBot({
   }
 
   return (
-    <div className="flex h-[560px] flex-col rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+    <div className="flex flex-col rounded-2xl bg-white shadow-sm ring-1 ring-slate-100" style={{ height }}>
       <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <Sparkles className="h-4 w-4 text-brand-600" />
         <span className="font-semibold">{t('chat.title')}</span>
@@ -59,8 +73,19 @@ export default function ChatBot({
             <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-600'}`}>
               {m.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
             </div>
-            <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-50 text-slate-800'}`}>
-              {m.content}
+            <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-50 text-slate-800'}`}>
+              {m.role === 'user' ? (
+                <span className="whitespace-pre-wrap">{m.content}</span>
+              ) : (
+                <div className="prose prose-sm max-w-none prose-a:text-brand-600 prose-a:underline prose-strong:text-slate-900 prose-p:my-1 prose-li:my-0.5 prose-ul:my-1 prose-ol:my-1 prose-h3:mt-2 prose-h3:mb-1 prose-h3:text-base">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>
+                    }}
+                  >{m.content}</ReactMarkdown>
+                </div>
+              )}
             </div>
           </div>
         ))}

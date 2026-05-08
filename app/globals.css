@@ -33,3 +33,9 @@ body {
 .card {
   @apply rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100;
 }
+
+.prose ul { list-style: disc; padding-inline-start: 1.25rem; }
+.prose ol { list-style: decimal; padding-inline-start: 1.25rem; }
+.prose strong { font-weight: 600; }
+.prose code { background: rgb(241 245 249); padding: 0 4px; border-radius: 4px; font-size: 0.85em; }
+.prose a { word-break: break-word; }

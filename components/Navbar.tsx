@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Plane, MapPin, Truck, LayoutDashboard, Sparkles } from 'lucide-react';
+import { Plane, MapPin, Truck, LayoutDashboard, Sparkles, Bike } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useI18n } from './I18nProvider';
 import LangToggle from './LangToggle';
@@ -12,6 +12,7 @@ export default function Navbar() {
     { href: '/flights', label: t('nav.flights'), icon: Plane },
     { href: '/nearby', label: t('nav.nearby'), icon: MapPin },
     { href: '/roadtrip', label: t('nav.roadtrip'), icon: Truck },
+    { href: '/bike', label: t('nav.bike'), icon: Bike },
     { href: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard }
   ];
   return (
