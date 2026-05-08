@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Compass, Save } from 'lucide-react';
 import ChatBot from './ChatBot';
@@ -17,12 +17,21 @@ const JEEP_SIZES = [
 export default function RoadTripPlanner() {
   const { t, lang } = useI18n();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locName, setLocName] = useState<string>('');
   const [destination, setDestination] = useState('');
   const [jeep, setJeep] = useState('midsize');
   const [people, setPeople] = useState(2);
   const [days, setDays] = useState(2);
   const [terrain, setTerrain] = useState<'mixed' | 'paved' | 'offroad' | 'desert' | 'mountain'>('mixed');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!coords) return;
+    fetch(`/api/geocode?lat=${coords.lat}&lng=${coords.lng}&lang=${lang}`)
+      .then(r => r.json())
+      .then(d => setLocName([d.city, d.country].filter(Boolean).join(', ')))
+      .catch(() => {});
+  }, [coords, lang]);
 
   const jeepData = JEEP_SIZES.find(j => j.id === jeep)!;
   const jeepLabel = lang === 'he' ? jeepData.he : jeepData.en;
@@ -63,7 +72,7 @@ export default function RoadTripPlanner() {
           <button onClick={getLocation} className="btn-ghost !py-2 text-sm">
             <Compass className="h-4 w-4" /> {coords ? t('road.refresh') : t('road.useStart')}
           </button>
-          {coords && <p className="mt-2 text-xs text-slate-500">📍 {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}</p>}
+          {coords && <p className="mt-2 text-xs text-slate-500">📍 {locName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`}</p>}
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <Field label={t('road.destination')}>
@@ -105,11 +114,12 @@ export default function RoadTripPlanner() {
       </div>
 
       <ChatBot
-        systemPrompt={`You are Trip.ly's road-trip planner. The user is planning a JEEP trip. Build a day-by-day itinerary including: route segments with km, fuel stops (the jeep does ~${jeepData.fuel} km/L), suggested overnight camps or hotels, terrain warnings, what to pack, and rough budget. Be concrete with place names. Reply in clean markdown with day headings.`}
+        key={locName + destination + jeep + people + days + terrain}
+        systemPrompt={`You are Trip.ly's road-trip planner. JEEP details: ${jeepLabel}, fuel ~${jeepData.fuel} km/L, ${jeepData.seats} seats. User starts in ${locName || 'unknown'} (${coords?.lat},${coords?.lng}), heading to ${destination || 'unspecified'}, ${people} people, ${days} days, terrain: ${terrain}. Build a concrete day-by-day plan: route segments with km, fuel stops, overnight camps/hotels, what to pack, budget. Use real place names from the actual region. Reply in markdown with day headings.`}
         initialAssistantMessage={lang === 'he'
-          ? `מוכן לתכנון! ${coords ? `מתחילים מ-${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}` : 'הגדירו נקודת התחלה'} → ${destination || 'בחרו יעד'}, ${jeepLabel.split(' (')[0]}, ${people} אנשים, ${days} ימים. ספרו על האווירה (הרפתקני, משפחתי, צילום) וחובות מסלול.`
-          : `Ready to plan! ${coords ? `Starting from ${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}` : 'Set start point'} → ${destination || 'pick a destination'}, ${jeepLabel.split(' (')[0]}, ${people} people, ${days} days, ${terrain}. Tell me your group's vibe and any must-sees.`}
-        context={{ start: coords, destination, jeep: jeepData, people, days, terrain }}
+          ? `מוכן! ${locName ? `מתחילים מ-${locName}` : 'הגדירו נקודת התחלה'} → ${destination || 'בחרו יעד'}, ${jeepLabel.split(' (')[0]}, ${people} אנשים, ${days} ימים. ספרו על האווירה (הרפתקני, משפחתי, צילום) וחובות מסלול.`
+          : `Ready! ${locName ? `Starting from ${locName}` : 'Set start point'} → ${destination || 'pick a destination'}, ${jeepLabel.split(' (')[0]}, ${people} people, ${days} days, ${terrain}. Tell me your group's vibe and any must-sees.`}
+        context={{ start: locName, coords, destination, jeep: jeepData, people, days, terrain }}
       />
     </div>
   );

@@ -25,6 +25,7 @@ export default function NearbyExplorer() {
   const [category, setCategory] = useState('restaurant');
   const [places, setPlaces] = useState<LeafletPlace[]>([]);
   const [loading, setLoading] = useState(false);
+  const [locName, setLocName] = useState<string>('');
 
   function getLocation() {
     setError(null);
@@ -37,6 +38,14 @@ export default function NearbyExplorer() {
   }
 
   useEffect(() => { getLocation(); }, []);
+
+  useEffect(() => {
+    if (!coords) return;
+    fetch(`/api/geocode?lat=${coords.lat}&lng=${coords.lng}&lang=${lang}`)
+      .then(r => r.json())
+      .then(d => setLocName([d.city, d.country].filter(Boolean).join(', ')))
+      .catch(() => {});
+  }, [coords, lang]);
 
   useEffect(() => {
     if (!coords) return;
@@ -59,7 +68,7 @@ export default function NearbyExplorer() {
               <Compass className="h-4 w-4" /> {t('nearby.useLocation')}
             </button>
             {error && <span className="text-xs text-red-600">{error}</span>}
-            {coords && <span className="text-xs text-slate-500">📍 {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}</span>}
+            {coords && <span className="text-xs text-slate-500">📍 {locName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`}</span>}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {CATEGORIES.map(c => (
@@ -95,11 +104,12 @@ export default function NearbyExplorer() {
       </div>
 
       <ChatBot
-        systemPrompt={`You are Trip.ly's local guide. The user is browsing the "${category}" category around their current location. Suggest things to do nearby, compose a half-day or full-day plan, and recommend timing. Reply concisely.`}
+        key={locName + category}
+        systemPrompt={`You are Trip.ly's local guide. The user is in ${locName || 'an unknown location'} (lat=${coords?.lat}, lng=${coords?.lng}) browsing the "${category}" category. Recommend specific real places by NAME from the user's actual area. Avoid generic advice. Suggest timing and a short itinerary.`}
         initialAssistantMessage={coords
-          ? (lang === 'he' ? `אני רואה שאתם ב-${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}. איזו אווירה בא לכם — רגוע, הרפתקני, אוכל, תרבותי?` : `I see you're near ${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}. What's the vibe — chill, adventurous, foodie, cultural?`)
+          ? (lang === 'he' ? `אתם ב${locName || 'מיקום שלכם'}. מה האווירה — רגוע, הרפתקני, אוכל, תרבותי?` : `You're in ${locName || 'your location'}. What's the vibe — chill, adventurous, foodie, cultural?`)
           : (lang === 'he' ? 'שתפו את המיקום כדי לקבל המלצות.' : 'Share your location to get suggestions.')}
-        context={{ coords, category, sample: places.slice(0, 5).map(p => p.name) }}
+        context={{ location: locName, coords, category, nearbyPlacesFound: places.slice(0, 8).map(p => p.name) }}
       />
     </div>
   );

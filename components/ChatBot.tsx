@@ -25,10 +25,10 @@ export default function ChatBot({
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   async function send() {
-    if (!input.trim() || busy) return;
-    const userMsg: ChatMessage = { role: 'user', content: input };
-    const next: ChatMessage[] = [...messages, userMsg, { role: 'assistant', content: '' }];
-    setMessages(next);
+    const text = input.trim();
+    if (!text || busy) return;
+    const userMsg: ChatMessage = { role: 'user', content: text };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setBusy(true);
     try {
@@ -37,33 +37,11 @@ export default function ChatBot({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system: systemPrompt, messages: [...messages, userMsg], context, lang })
       });
-      if (!res.ok || !res.body) {
-        setMessages(prev => {
-          const c = [...prev];
-          c[c.length - 1] = { role: 'assistant', content: t('chat.unknown') };
-          return c;
-        });
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let acc = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        setMessages(prev => {
-          const c = [...prev];
-          c[c.length - 1] = { role: 'assistant', content: acc };
-          return c;
-        });
-      }
+      const data = await res.json();
+      const reply = data.reply || (data.error ? `⚠️ ${data.error}` : t('chat.unknown'));
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch {
-      setMessages(prev => {
-        const c = [...prev];
-        c[c.length - 1] = { role: 'assistant', content: t('chat.error') };
-        return c;
-      });
+      setMessages(prev => [...prev, { role: 'assistant', content: t('chat.error') }]);
     } finally {
       setBusy(false);
     }
@@ -82,10 +60,22 @@ export default function ChatBot({
               {m.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
             </div>
             <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-50 text-slate-800'}`}>
-              {m.content || (busy && i === messages.length - 1 ? '…' : '')}
+              {m.content}
             </div>
           </div>
         ))}
+        {busy && (
+          <div className="flex gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-1 rounded-2xl bg-slate-50 px-4 py-3">
+              <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+              <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.15s' }} />
+              <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.3s' }} />
+            </div>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 border-t border-slate-100 p-3">
