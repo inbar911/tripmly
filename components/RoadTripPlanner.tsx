@@ -1,8 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { APIProvider, Map, Marker } from '@vis.gl/react-google-maps';
-import { Compass, Truck, Save, MapPin } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { Compass, Save } from 'lucide-react';
 import ChatBot from './ChatBot';
+
+const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false });
 
 const JEEP_SIZES = [
   { id: 'compact', label: 'Compact (Wrangler 2-door)', seats: 4, fuel: 12 },
@@ -19,7 +21,6 @@ export default function RoadTripPlanner() {
   const [days, setDays] = useState(2);
   const [terrain, setTerrain] = useState<'mixed' | 'paved' | 'offroad' | 'desert' | 'mountain'>('mixed');
   const [saving, setSaving] = useState(false);
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const jeepData = JEEP_SIZES.find(j => j.id === jeep)!;
   const tooMany = people > jeepData.seats;
@@ -90,20 +91,16 @@ export default function RoadTripPlanner() {
           </button>
         </div>
 
-        {coords && apiKey && (
-          <APIProvider apiKey={apiKey}>
-            <div className="overflow-hidden rounded-2xl ring-1 ring-slate-100" style={{ height: 320 }}>
-              <Map defaultCenter={coords} defaultZoom={8} mapId="tripmly-roadtrip" gestureHandling="greedy">
-                <Marker position={coords} />
-              </Map>
-            </div>
-          </APIProvider>
+        {coords && (
+          <div className="overflow-hidden rounded-2xl ring-1 ring-slate-100" style={{ height: 320 }}>
+            <LeafletMap center={coords} zoom={8} height={320} />
+          </div>
         )}
       </div>
 
       <ChatBot
         systemPrompt={`You are Trip.ly's road-trip planner. The user is planning a JEEP trip. Build a day-by-day itinerary including: route segments with km, fuel stops (the jeep does ~${jeepData.fuel} km/L), suggested overnight camps or hotels, terrain warnings, what to pack, and rough budget. Be concrete with place names. Reply in clean markdown with day headings.`}
-        initialAssistantMessage={`Ready to plan! ${coords ? `Starting from ${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}` : 'Set your start point'} → ${destination || 'pick a destination'}, ${jeepData.label.split(' (')[0]} jeep, ${people} people, ${days} days, ${terrain} terrain. Tell me about your group's vibe (adventurous, family, photography, etc.) and any must-sees.`}
+        initialAssistantMessage={`Ready to plan! ${coords ? `Starting from ${coords.lat.toFixed(2)}, ${coords.lng.toFixed(2)}` : 'Set your start point'} → ${destination || 'pick a destination'}, ${jeepData.label.split(' (')[0]} jeep, ${people} people, ${days} days, ${terrain} terrain. Tell me your group's vibe (adventurous, family, photography, etc.) and any must-sees.`}
         context={{ start: coords, destination, jeep: jeepData, people, days, terrain }}
       />
     </div>
