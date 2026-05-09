@@ -1,24 +1,26 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Bot, User } from 'lucide-react';
+import { Send, Sparkles, Bot, User, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useI18n } from './I18nProvider';
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+export type ChatMessage = { role: 'user' | 'assistant'; content: string; sources?: { uri: string; title: string }[] };
 
 export default function ChatBot({
   systemPrompt,
   initialAssistantMessage,
   context,
   height = 560,
-  autoSendMessage
+  autoSendMessage,
+  useSearch = false
 }: {
   systemPrompt: string;
   initialAssistantMessage: string;
   context?: Record<string, any>;
   height?: number;
   autoSendMessage?: string;
+  useSearch?: boolean;
 }) {
   const { t, lang } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>(
@@ -49,11 +51,11 @@ export default function ChatBot({
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: systemPrompt, messages: [...messages, userMsg], context, lang })
+        body: JSON.stringify({ system: systemPrompt, messages: [...messages, userMsg], context, lang, useSearch })
       });
       const data = await res.json();
       const reply = data.reply || (data.error ? `⚠️ ${data.error}` : t('chat.unknown'));
-      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, sources: data.sources }]);
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: t('chat.error') }]);
     } finally {
@@ -66,6 +68,7 @@ export default function ChatBot({
       <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <Sparkles className="h-4 w-4 text-brand-600" />
         <span className="font-semibold">{t('chat.title')}</span>
+        {useSearch && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">🌐 {lang === 'he' ? 'חיפוש מעמיק' : 'Deep search'}</span>}
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.map((m, i) => (
@@ -77,14 +80,30 @@ export default function ChatBot({
               {m.role === 'user' ? (
                 <span className="whitespace-pre-wrap">{m.content}</span>
               ) : (
-                <div className="prose prose-sm max-w-none prose-a:text-brand-600 prose-a:underline prose-strong:text-slate-900 prose-p:my-1 prose-li:my-0.5 prose-ul:my-1 prose-ol:my-1 prose-h3:mt-2 prose-h3:mb-1 prose-h3:text-base">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>
-                    }}
-                  >{m.content}</ReactMarkdown>
-                </div>
+                <>
+                  <div className="prose prose-sm max-w-none prose-a:text-brand-600 prose-a:underline prose-strong:text-slate-900 prose-p:my-1 prose-li:my-0.5 prose-ul:my-1 prose-ol:my-1 prose-h3:mt-2 prose-h3:mb-1 prose-h3:text-base">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>
+                      }}
+                    >{m.content}</ReactMarkdown>
+                  </div>
+                  {m.sources && m.sources.length > 0 && (
+                    <details className="mt-2 text-xs">
+                      <summary className="cursor-pointer text-slate-500 hover:text-slate-700">{lang === 'he' ? `${m.sources.length} מקורות` : `${m.sources.length} sources`}</summary>
+                      <ul className="mt-1 space-y-1">
+                        {m.sources.map((s, j) => (
+                          <li key={j}>
+                            <a href={s.uri} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                              <ExternalLink className="h-3 w-3" /> {s.title || s.uri}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -94,10 +113,13 @@ export default function ChatBot({
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600">
               <Bot className="h-4 w-4" />
             </div>
-            <div className="flex items-center gap-1 rounded-2xl bg-slate-50 px-4 py-3">
-              <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
-              <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.15s' }} />
-              <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.3s' }} />
+            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-1">
+                <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+                <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.15s' }} />
+                <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.3s' }} />
+              </div>
+              {useSearch && <p className="mt-1 text-[10px] text-slate-500">{lang === 'he' ? 'מחפש בקקל, Israelhiking, MTB.co.il…' : 'Searching KKL, Israelhiking, MTB.co.il…'}</p>}
             </div>
           </div>
         )}

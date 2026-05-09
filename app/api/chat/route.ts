@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
-const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+const FAST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+const SEARCH_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
 export async function POST(req: Request) {
   try {
-    const { system, messages, context, lang } = await req.json();
+    const { system, messages, context, lang, useSearch } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return NextResponse.json({ reply: 'Missing GEMINI_API_KEY' }, { status: 500 });
 
@@ -22,24 +23,27 @@ export async function POST(req: Request) {
       parts: [{ text: m.content }]
     }));
 
-    const body = JSON.stringify({
+    const baseBody: any = {
       systemInstruction: { parts: [{ text: sys }] },
       contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 700,
-        thinkingConfig: { thinkingBudget: 0 }
-      }
-    });
+      generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
+    };
+    if (useSearch) {
+      baseBody.tools = [{ google_search: {} }];
+    } else {
+      baseBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      baseBody.generationConfig.maxOutputTokens = 700;
+    }
 
+    const models = useSearch ? SEARCH_MODELS : FAST_MODELS;
     let lastErr = 'no model responded';
-    for (const model of MODELS) {
+    for (const model of models) {
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body,
-          signal: AbortSignal.timeout(25000)
+          body: JSON.stringify(baseBody),
+          signal: AbortSignal.timeout(useSearch ? 50000 : 25000)
         });
         const data = await r.json();
         if (r.status === 429 || data?.error?.status === 'RESOURCE_EXHAUSTED') {
@@ -50,8 +54,13 @@ export async function POST(req: Request) {
           lastErr = data?.error?.message || `HTTP ${r.status}`;
           continue;
         }
-        const reply = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
-        if (reply) return NextResponse.json({ reply, model });
+        const reply = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
+        const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        const sources = chunks
+          .map((c: any) => c.web ? { uri: c.web.uri, title: c.web.title } : null)
+          .filter(Boolean)
+          .slice(0, 8);
+        if (reply) return NextResponse.json({ reply, model, sources });
       } catch (e: any) {
         lastErr = e?.message || 'fetch failed';
       }

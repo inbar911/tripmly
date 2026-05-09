@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Plane, MapPin, Truck, Bike, ArrowRight } from 'lucide-react';
+import { Plane, MapPin, Truck, Bike, Footprints, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/components/I18nProvider';
 
 export default function Home() {
@@ -19,11 +19,12 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Feature href="/flights" icon={Plane} title={t('home.f1.title')} desc={t('home.f1.desc')} open={t('home.open')} />
         <Feature href="/nearby" icon={MapPin} title={t('home.f2.title')} desc={t('home.f2.desc')} open={t('home.open')} />
         <Feature href="/roadtrip" icon={Truck} title={t('home.f3.title')} desc={t('home.f3.desc')} open={t('home.open')} />
         <Feature href="/bike" icon={Bike} title={t('home.f4.title')} desc={t('home.f4.desc')} open={t('home.open')} />
+        <Feature href="/hike" icon={Footprints} title={t('home.f5.title')} desc={t('home.f5.desc')} open={t('home.open')} />
       </section>
 
       <section className="card">

@@ -23,30 +23,51 @@ export default function BikePlanner() {
       ? { easy: 'קל', med: 'בינוני', hard: 'קשה', epic: 'אפי' }[difficulty]
       : { easy: 'easy', med: 'medium', hard: 'hard', epic: 'epic' }[difficulty];
     const prompt = lang === 'he'
-      ? `מצא לי 3 מסלולי אופניים אמיתיים בסביבת ${locName || 'מיקומי'}. סוג: ${typeLabel}, מרחק: ~${distance} ק״מ, רמת קושי: ${diffLabel}. לכל מסלול: שם אמיתי, אזור, אורך, ערמת גובה משוערת, תיאור קצר, ולינק לגוגל מפס + ויז של נקודת ההתחלה.`
-      : `Find me 3 real bike routes near ${locName || 'my location'}. Type: ${typeLabel}, target distance ~${distance}km, difficulty ${diffLabel}. For each: real name, area, length, approx elevation gain, short description, and Google Maps + Waze links to the trailhead.`;
+      ? `חפש לי 3 מסלולי אופניים אמיתיים בקרבת ${locName || 'מיקומי'} (קואורדינטות ${coords?.lat}, ${coords?.lng}). סוג: ${typeLabel}, מרחק: ~${distance} ק״מ, רמת קושי: ${diffLabel}.
+
+חיפוש מעמיק באתרי קקל (kkl.org.il), Israelhiking (israelhiking.osm.org.il), MTB.co.il, Singletrack.co.il, AllTrails, וכל מקור אחר רלוונטי. לכל מסלול:
+- שם רשמי
+- מיקום מדויק (יער/פארק/אזור)
+- אורך אמיתי בק״מ (לא הערכה)
+- ערמת גובה אמיתית במטרים
+- רמת קושי מדויקת (לפי המקור)
+- סוג מסלול (לולאה/הלוך-חזור/חציה)
+- תיאור קצר ותנאי שטח
+- לינק [📍 מפות](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes) לנקודת ההתחלה
+
+תמצית את התשובה בטבלאות מסודרות במרקדאון. אל תמציא נתונים — רק מה שמצאת.`
+      : `Find me 3 real bike routes near ${locName || 'my location'} (${coords?.lat}, ${coords?.lng}). Type: ${typeLabel}, distance ~${distance}km, difficulty ${diffLabel}.
+
+Search KKL (kkl.org.il), Israelhiking, MTB.co.il, Singletrack.co.il, AllTrails. For each route:
+- Official name
+- Exact location (forest/park/area)
+- Real distance in km (not estimate)
+- Real elevation gain in meters
+- Accurate difficulty (per source)
+- Loop / out-and-back / point-to-point
+- Short description and terrain
+- [📍 Maps](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes) for trailhead
+
+Use markdown tables. Don't invent — only verified data.`;
     setAutoMsg(prompt);
     setChatKey(k => k + 1);
   }
 
-  const sysPrompt = `You are Trip.ly's bike route expert. The user is in ${locName || 'unknown location'} (lat=${coords?.lat}, lng=${coords?.lng}).
+  const sysPrompt = `You are Trip.ly's bike route expert with web search access. The user is in ${locName || 'unknown location'} (${coords?.lat}, ${coords?.lng}).
 
-KNOWLEDGE: You have deep knowledge of Israeli bike trails — singletracks, MTB parks, and bike paths. Examples (use ONLY when relevant to user's actual area): Sugarcane (סוכר), Eshtaol (אשתאול), Park HaMassorek (פארק המסורק), Givat Koach (גבעת כ״ח), Tzora (צרעה), Ben Shemen (בן שמן), Park Ofer (פארק עופר), Ramat Hanadiv (רמת הנדיב), Goren Park (גורן), Carmel singletracks (כרמל), Mount Tabor (תבור), Bezet (בצת), Yatir Forest (יתיר), Park Britannia (בריטניה), Ein Hashofet (עין השופט). Outside Israel use trails relevant to that country.
+USE GOOGLE SEARCH to find real, verified bike trails — search KKL (kkl.org.il), Israelhiking.osm.org.il, MTB.co.il, Singletrack.co.il, AllTrails, Komoot, Strava. Cross-reference 2+ sources before stating distance/elevation.
 
 RULES:
-1. Always give 3 REAL named routes — never invent.
-2. For EACH route output:
-   - **Route name** (real, in user's language)
-   - Area / nearest town
-   - Distance (km), elevation gain (m), difficulty
-   - Short description (2 sentences)
-   - [📍 ${lang === 'he' ? 'מפות' : 'Maps'}](https://www.google.com/maps/search/?api=1&query=ROUTE_NAME+AREA) [🚗 Waze](https://waze.com/ul?q=TRAILHEAD_NAME&navigate=yes)
-3. Use markdown headings and bullets. Reply in ${lang === 'he' ? 'Hebrew (עברית)' : 'English'}.
-4. Match user's distance/difficulty/type strictly.`;
+1. NEVER invent trails or numbers. If a fact isn't verifiable, say "approximately" or omit.
+2. Always include real numbers: distance (km), elevation gain (m), difficulty rating from the source.
+3. Format each route with a markdown table or clear bullets.
+4. Include [📍 ${lang === 'he' ? 'מפות' : 'Maps'}](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes) deep-links for the trailhead.
+5. Reply in ${lang === 'he' ? 'Hebrew (עברית)' : 'English'}.
+6. Match user's distance/difficulty/type strictly.`;
 
   const initialMsg = lang === 'he'
-    ? `אני בחיפוש מסלולים בסביבת **${locName || 'מיקומך'}**. כווננו את הפרמטרים ולחצו "מצא לי מסלול" — אביא 3 מסלולים אמיתיים עם לינקים.`
-    : `Ready to find routes near **${locName || 'your location'}**. Tune the parameters and click "Find me a route" — I'll bring 3 real routes with links.`;
+    ? `מסלולים מאומתים בסביבת **${locName || 'מיקומך'}**. כווננו פרמטרים ולחצו "מצא לי מסלול" — אעשה חיפוש מעמיק באתרי קקל ו-Israelhiking ואחזיר נתונים מדויקים בלבד.`
+    : `Verified routes near **${locName || 'your location'}**. Tune parameters and click "Find route" — I'll search KKL, Israelhiking and return verified data only.`;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -85,6 +106,7 @@ RULES:
           <button onClick={findRoute} disabled={!coords} className="btn-primary mt-4 w-full disabled:opacity-50">
             <Bike className="h-4 w-4" /> {t('bike.findRoute')}
           </button>
+          <p className="mt-2 text-center text-[10px] text-slate-500">🌐 {lang === 'he' ? 'חיפוש מעמיק באתרי קקל, Israelhiking, MTB' : 'Deep search across KKL, Israelhiking, MTB sites'}</p>
         </div>
       </div>
 
@@ -93,6 +115,7 @@ RULES:
         systemPrompt={sysPrompt}
         initialAssistantMessage={initialMsg}
         autoSendMessage={autoMsg}
+        useSearch={true}
         context={{ location: locName, coords, distance, difficulty, type }}
         height={620}
       />
