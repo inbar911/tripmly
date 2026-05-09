@@ -28,19 +28,26 @@ async function getCandidates(mode: 'bike' | 'hike', userLoc: string, filters: an
   const apiKey = process.env.GEMINI_API_KEY!;
   const isHebrew = lang === 'he';
 
+  const radiusKm = filters.radiusKm || 9999;
+  const radiusInstruction = radiusKm >= 9999
+    ? 'Spread candidates across the country.'
+    : `Concentrate candidates that are likely WITHIN ${Math.round(radiusKm * 1.4)} km driving distance of the user. Prioritize trails CLOSEST to the user's coordinates first.`;
+
   const userPrompt = mode === 'bike'
-    ? `User location: ${userLoc} (${filters.coords.lat}, ${filters.coords.lng}).
-Find 10 candidate bike trails:
+    ? `User location: ${userLoc} (lat=${filters.coords.lat}, lng=${filters.coords.lng}).
+Find 15 candidate bike trails:
 - type: ${filters.type}
 - target ride distance: ${filters.distance}km
 - difficulty: ${filters.difficulty}
-Israeli trails: use real names from KKL, MTB.co.il, Singletrack.co.il, Komoot, Strava heatmaps. Return widely spread candidates across regions so we can filter by driving distance later.`
-    : `User location: ${userLoc} (${filters.coords.lat}, ${filters.coords.lng}).
-Find 10 OFFICIALLY MARKED hiking trails:
+${radiusInstruction}
+Use real Israeli trail names: KKL forests (אשתאול, בן שמן, סטף, חרובית, עפרים, יתיר, מסורק, צרעה, גורן), Sugarcane (סוכר), Ramat Hanadiv (רמת הנדיב), Park Ariel Sharon, Park Yarkon, Carmel singletracks, MTB.co.il, Singletrack.co.il, Komoot, Strava. Spread candidates by region — closest first.`
+    : `User location: ${userLoc} (lat=${filters.coords.lat}, lng=${filters.coords.lng}).
+Find 15 OFFICIALLY MARKED hiking trails:
 - scenery: ${filters.scenery}
 - target length: ${filters.distance}km
 - difficulty: ${filters.difficulty}
-Israeli trails: real marked trails (red/blue/green/black blaze by SPNI, KKL, INPA, Israel National Trail). Return widely spread candidates across regions so we can filter by driving distance later.`;
+${radiusInstruction}
+Real marked trails only (red/blue/green/black blaze by SPNI, KKL, INPA national parks, Israel National Trail). Examples by area: Yarkon Park, Apollonia, Hadera Stream, Tel Afek, Ein Hemed, Sataf, Ein Prat, Carmel National Park, Mount Tabor, Banias, Ein Gedi, Avshalom (Soreq), Adulam, Mitzpe Ramon. Spread candidates by region — closest first.`;
 
   const schema = {
     type: 'object',
