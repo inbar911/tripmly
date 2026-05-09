@@ -44,7 +44,7 @@ export default function ChatBot({
     const text = (textOverride ?? input).trim();
     if (!text || busy) return;
     const userMsg: ChatMessage = { role: 'user', content: text };
-    setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '' }]);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setBusy(true);
     try {
@@ -53,40 +53,11 @@ export default function ChatBot({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system: systemPrompt, messages: [...messages, userMsg], context, lang, useSearch })
       });
-      if (!res.ok || !res.body) {
-        setMessages(prev => {
-          const c = [...prev];
-          c[c.length - 1] = { role: 'assistant', content: t('chat.unknown') };
-          return c;
-        });
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let acc = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        acc += decoder.decode(value, { stream: true });
-        const idx = acc.indexOf('__SOURCES__');
-        let text = acc;
-        let sources: { uri: string; title: string }[] | undefined;
-        if (idx >= 0) {
-          text = acc.slice(0, idx).trimEnd();
-          try { sources = JSON.parse(acc.slice(idx + '__SOURCES__'.length)); } catch {}
-        }
-        setMessages(prev => {
-          const c = [...prev];
-          c[c.length - 1] = { role: 'assistant', content: text, sources };
-          return c;
-        });
-      }
+      const data = await res.json();
+      const reply = data.reply || (data.error ? `⚠️ ${data.error}` : t('chat.unknown'));
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, sources: data.sources }]);
     } catch {
-      setMessages(prev => {
-        const c = [...prev];
-        c[c.length - 1] = { role: 'assistant', content: t('chat.error') };
-        return c;
-      });
+      setMessages(prev => [...prev, { role: 'assistant', content: t('chat.error') }]);
     } finally {
       setBusy(false);
     }
@@ -110,20 +81,12 @@ export default function ChatBot({
                 <span className="whitespace-pre-wrap">{m.content}</span>
               ) : (
                 <>
-                  {m.content ? (
-                    <div className="prose prose-sm max-w-none prose-a:text-brand-600 prose-a:underline prose-strong:text-slate-900 prose-p:my-1 prose-li:my-0.5 prose-ul:my-1 prose-ol:my-1 prose-h3:mt-2 prose-h3:mb-1 prose-h3:text-base">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a> }}
-                      >{m.content}</ReactMarkdown>
-                    </div>
-                  ) : busy && i === messages.length - 1 ? (
-                    <div className="flex items-center gap-1">
-                      <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
-                      <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.15s' }} />
-                      <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.3s' }} />
-                    </div>
-                  ) : null}
+                  <div className="prose prose-sm max-w-none prose-a:text-brand-600 prose-a:underline prose-strong:text-slate-900 prose-p:my-1 prose-li:my-0.5 prose-ul:my-1 prose-ol:my-1 prose-h3:mt-2 prose-h3:mb-1 prose-h3:text-base">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a> }}
+                    >{m.content}</ReactMarkdown>
+                  </div>
                   {m.sources && m.sources.length > 0 && (
                     <details className="mt-2 text-xs">
                       <summary className="cursor-pointer text-slate-500 hover:text-slate-700">{lang === 'he' ? `${m.sources.length} מקורות` : `${m.sources.length} sources`}</summary>
@@ -143,6 +106,21 @@ export default function ChatBot({
             </div>
           </div>
         ))}
+        {busy && (
+          <div className="flex gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-1">
+                <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+                <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.15s' }} />
+                <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0.3s' }} />
+              </div>
+              {useSearch && <p className="mt-1 text-[10px] text-slate-500">{lang === 'he' ? 'מחפש בקקל, Israelhiking…' : 'Searching KKL, Israelhiking…'}</p>}
+            </div>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 border-t border-slate-100 p-3">
