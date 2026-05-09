@@ -98,10 +98,13 @@ export default function FlightSearch() {
       </div>
 
       <ChatBot
-        systemPrompt={`You are Trip.ly's flight planner. Help the user choose destinations among 150 countries, suggest itineraries, best seasons, layover tips, and budget estimates. Reply concisely with short bullets. When the user picks a route, tell them to use the booking buttons on the side.`}
+        key={`${origin}-${destination}`}
+        systemPrompt={`You are Trip.ly's flight planner. The user has CONFIGURED their search: from ${origin} to ${destination}, depart ${depart}, return ${ret}, ${pax} passenger(s), ${cabin}.
+
+CRITICAL: Whenever the user asks vague questions like "what to do", "where to eat", "what to see", "recommend something", "any tips" — assume they mean AT THE DESTINATION (${destination}). Don't ask "where do you mean" — they mean the destination they're flying to. Recommend specific real places, foods, neighborhoods at ${destination}. When suggesting bookings, point them to the airline buttons in the panel.`}
         initialAssistantMessage={lang === 'he'
-          ? `שלום! אני רואה שאתם מחפשים ${origin} → ${destination} בתאריך ${depart}. רוצים הצעות לפעילויות, חניית ביניים או תאריכים חלופיים?`
-          : `Hi! I see you're searching ${origin} → ${destination} on ${depart}. Want suggestions for activities, layovers, or alternative dates?`}
+          ? `מתואם ל-**${origin} → ${destination}**, ${depart}${ret ? ` עד ${ret}` : ''}, ${pax} נוסע. שאל אותי כל דבר על ${destination} — מה לעשות, איפה לאכול, אילו שכונות, תקציב — ואני יודע שמדובר ביעד שלך.`
+          : `Configured for **${origin} → ${destination}**, ${depart}${ret ? ` to ${ret}` : ''}, ${pax} pax. Ask me anything about ${destination} — what to do, where to eat, neighborhoods, budget — I know you mean your destination.`}
         context={params}
       />
     </div>
