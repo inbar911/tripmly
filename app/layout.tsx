@@ -4,6 +4,7 @@ import './globals.css';
 import 'leaflet/dist/leaflet.css';
 import Navbar from '@/components/Navbar';
 import { I18nProvider } from '@/components/I18nProvider';
+import { LocationProvider } from '@/components/LocationProvider';
 import { type Lang, dirFor } from '@/lib/i18n';
 
 export const metadata: Metadata = {
@@ -24,8 +25,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={lang} dir={dirFor(lang)}>
       <body className="min-h-screen">
         <I18nProvider lang={lang}>
-          <Navbar />
-          <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:pt-10 md:pb-12">{children}</main>
+          <LocationProvider>
+            <Navbar />
+            <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:pt-10 md:pb-12">{children}</main>
+          </LocationProvider>
         </I18nProvider>
       </body>
     </html>

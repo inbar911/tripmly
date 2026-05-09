@@ -1,9 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Compass, Save } from 'lucide-react';
 import ChatBot from './ChatBot';
 import { useI18n } from './I18nProvider';
+import { useLocation } from './LocationProvider';
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false, loading: () => <div className="flex h-full items-center justify-center text-sm text-slate-400">…</div> });
 
@@ -16,8 +17,8 @@ const JEEP_SIZES = [
 
 export default function RoadTripPlanner() {
   const { t, lang } = useI18n();
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locName, setLocName] = useState<string>('');
+  const { coords, city, country, refresh, loading } = useLocation();
+  const locName = [city, country].filter(Boolean).join(', ');
   const [destination, setDestination] = useState('');
   const [jeep, setJeep] = useState('midsize');
   const [people, setPeople] = useState(2);
@@ -25,28 +26,12 @@ export default function RoadTripPlanner() {
   const [terrain, setTerrain] = useState<'mixed' | 'paved' | 'offroad' | 'desert' | 'mountain'>('mixed');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!coords) return;
-    fetch(`/api/geocode?lat=${coords.lat}&lng=${coords.lng}&lang=${lang}`)
-      .then(r => r.json())
-      .then(d => setLocName([d.city, d.country].filter(Boolean).join(', ')))
-      .catch(() => {});
-  }, [coords, lang]);
-
   const jeepData = JEEP_SIZES.find(j => j.id === jeep)!;
   const jeepLabel = lang === 'he' ? jeepData.he : jeepData.en;
   const tooMany = people > jeepData.seats;
 
-  function getLocation() {
-    if (!navigator.geolocation) { setCoords({ lat: 32.0853, lng: 34.7818 }); return; }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setCoords({ lat: 32.0853, lng: 34.7818 })
-    );
-  }
-
   async function save() {
-    if (!coords || !destination) { alert(lang === 'he' ? 'הגדירו נקודת התחלה ויעד' : 'Set start and destination'); return; }
+    if (!coords || !destination) { alert(lang === 'he' ? 'הגדירו יעד' : 'Set destination'); return; }
     if (tooMany) { alert(lang === 'he' ? 'מספר האנשים חורג מקיבולת הג׳יפ' : 'Too many people for this jeep'); return; }
     setSaving(true);
     try {
@@ -56,7 +41,7 @@ export default function RoadTripPlanner() {
         body: JSON.stringify({
           type: 'roadtrip',
           title: `Road trip → ${destination}`,
-          payload: { start: coords, destination, jeep, people, days, terrain }
+          payload: { start: coords, startName: locName, destination, jeep, people, days, terrain }
         })
       });
       const j = await res.json();
@@ -69,10 +54,12 @@ export default function RoadTripPlanner() {
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
         <div className="card">
-          <button onClick={getLocation} className="btn-ghost !py-2 text-sm">
-            <Compass className="h-4 w-4" /> {coords ? t('road.refresh') : t('road.useStart')}
-          </button>
-          {coords && <p className="mt-2 text-xs text-slate-500">📍 {locName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`}</p>}
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500">📍 {loading ? '…' : (locName || (coords ? `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}` : '—'))}</p>
+            <button onClick={refresh} className="btn-ghost !py-1.5 text-xs">
+              <Compass className="h-3 w-3" /> {t('road.refresh')}
+            </button>
+          </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <Field label={t('road.destination')}>
@@ -115,10 +102,10 @@ export default function RoadTripPlanner() {
 
       <ChatBot
         key={locName + destination + jeep + people + days + terrain}
-        systemPrompt={`You are Trip.ly's road-trip planner. JEEP details: ${jeepLabel}, fuel ~${jeepData.fuel} km/L, ${jeepData.seats} seats. User starts in ${locName || 'unknown'} (${coords?.lat},${coords?.lng}), heading to ${destination || 'unspecified'}, ${people} people, ${days} days, terrain: ${terrain}. Build a concrete day-by-day plan: route segments with km, fuel stops, overnight camps/hotels, what to pack, budget. Use real place names from the actual region. Reply in markdown with day headings.`}
+        systemPrompt={`You are Trip.ly's road-trip planner. JEEP details: ${jeepLabel}, fuel ~${jeepData.fuel} km/L, ${jeepData.seats} seats. User starts in ${locName || 'unknown'} (${coords?.lat},${coords?.lng}), heading to ${destination || 'unspecified'}, ${people} people, ${days} days, terrain: ${terrain}. Build a concrete day-by-day plan: route segments with km, fuel stops, overnight camps/hotels, what to pack, budget. Use real place names. For each major stop include [📍 ${lang === 'he' ? 'מפות' : 'Maps'}](https://www.google.com/maps/search/?api=1&query=PLACE+CITY) [🚗 Waze](https://waze.com/ul?q=PLACE&navigate=yes). Reply in markdown with day headings.`}
         initialAssistantMessage={lang === 'he'
-          ? `מוכן! ${locName ? `מתחילים מ-${locName}` : 'הגדירו נקודת התחלה'} → ${destination || 'בחרו יעד'}, ${jeepLabel.split(' (')[0]}, ${people} אנשים, ${days} ימים. ספרו על האווירה (הרפתקני, משפחתי, צילום) וחובות מסלול.`
-          : `Ready! ${locName ? `Starting from ${locName}` : 'Set start point'} → ${destination || 'pick a destination'}, ${jeepLabel.split(' (')[0]}, ${people} people, ${days} days, ${terrain}. Tell me your group's vibe and any must-sees.`}
+          ? `מוכן! ${locName ? `מתחילים מ-**${locName}**` : 'הגדירו נקודת התחלה'} → ${destination || 'בחרו יעד'}, ${jeepLabel.split(' (')[0]}, ${people} אנשים, ${days} ימים. ספרו על האווירה (הרפתקני, משפחתי, צילום).`
+          : `Ready! ${locName ? `Starting from **${locName}**` : 'Set start point'} → ${destination || 'pick a destination'}, ${jeepLabel.split(' (')[0]}, ${people} people, ${days} days, ${terrain}. Tell me your group's vibe.`}
         context={{ start: locName, coords, destination, jeep: jeepData, people, days, terrain }}
       />
     </div>

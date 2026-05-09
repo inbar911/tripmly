@@ -1,36 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Compass, Bike } from 'lucide-react';
 import ChatBot from './ChatBot';
 import { useI18n } from './I18nProvider';
+import { useLocation } from './LocationProvider';
 
 export default function BikePlanner() {
   const { t, lang } = useI18n();
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locName, setLocName] = useState<string>('');
+  const { coords, city, country, refresh, loading } = useLocation();
+  const locName = [city, country].filter(Boolean).join(', ');
   const [distance, setDistance] = useState(30);
   const [difficulty, setDifficulty] = useState<'easy' | 'med' | 'hard' | 'epic'>('med');
   const [type, setType] = useState<'road' | 'gravel' | 'mtb' | 'single' | 'family'>('single');
   const [chatKey, setChatKey] = useState(0);
   const [autoMsg, setAutoMsg] = useState<string | undefined>();
-
-  function getLocation() {
-    if (!navigator.geolocation) { setCoords({ lat: 32.0853, lng: 34.7818 }); return; }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setCoords({ lat: 32.0853, lng: 34.7818 })
-    );
-  }
-
-  useEffect(() => { getLocation(); }, []);
-
-  useEffect(() => {
-    if (!coords) return;
-    fetch(`/api/geocode?lat=${coords.lat}&lng=${coords.lng}&lang=${lang}`)
-      .then(r => r.json())
-      .then(d => setLocName([d.city, d.country].filter(Boolean).join(', ')))
-      .catch(() => {});
-  }, [coords, lang]);
 
   function findRoute() {
     const typeLabel = lang === 'he'
@@ -40,15 +23,15 @@ export default function BikePlanner() {
       ? { easy: 'קל', med: 'בינוני', hard: 'קשה', epic: 'אפי' }[difficulty]
       : { easy: 'easy', med: 'medium', hard: 'hard', epic: 'epic' }[difficulty];
     const prompt = lang === 'he'
-      ? `מצא לי 3 מסלולי אופניים אמיתיים בסביבת ${locName || 'מיקומי'} בארץ. סוג: ${typeLabel}, מרחק רצוי: ~${distance} ק״מ, רמת קושי: ${diffLabel}. לכל מסלול תן: שם אמיתי, אזור, אורך, ערמת גובה משוערת, תיאור קצר, ולינק לגוגל מפס + ויז של נקודת ההתחלה.`
-      : `Find me 3 real bike routes near ${locName || 'my location'}. Type: ${typeLabel}, target distance ~${distance}km, difficulty ${diffLabel}. For each give: real name, area, length, approx elevation gain, short description, and Google Maps + Waze links to the trailhead.`;
+      ? `מצא לי 3 מסלולי אופניים אמיתיים בסביבת ${locName || 'מיקומי'}. סוג: ${typeLabel}, מרחק: ~${distance} ק״מ, רמת קושי: ${diffLabel}. לכל מסלול: שם אמיתי, אזור, אורך, ערמת גובה משוערת, תיאור קצר, ולינק לגוגל מפס + ויז של נקודת ההתחלה.`
+      : `Find me 3 real bike routes near ${locName || 'my location'}. Type: ${typeLabel}, target distance ~${distance}km, difficulty ${diffLabel}. For each: real name, area, length, approx elevation gain, short description, and Google Maps + Waze links to the trailhead.`;
     setAutoMsg(prompt);
     setChatKey(k => k + 1);
   }
 
   const sysPrompt = `You are Trip.ly's bike route expert. The user is in ${locName || 'unknown location'} (lat=${coords?.lat}, lng=${coords?.lng}).
 
-KNOWLEDGE: You have deep knowledge of Israeli bike trails — singletracks, MTB parks, and bike paths. Examples (use ONLY when relevant to user's actual area): Sugarcane (סוכר), Eshtaol (אשתאול), Park HaMassorek (פארק המסורק), Givat Koach (גבעת כ״ח), Tzora (צרעה), Ben Shemen (בן שמן), Park Ofer (פארק עופר), Ramat Hanadiv (רמת הנדיב), Goren Park (גורן), Carmel singletracks (כרמל), Mount Tabor (תבור), Bezet (בצת), Yatir Forest (יתיר), Park Britannia (בריטניה), Ein Hashofet (עין השופט), Iron Park (פארק העיר ברזל), HaShita Forest. Outside Israel use trails relevant to that country.
+KNOWLEDGE: You have deep knowledge of Israeli bike trails — singletracks, MTB parks, and bike paths. Examples (use ONLY when relevant to user's actual area): Sugarcane (סוכר), Eshtaol (אשתאול), Park HaMassorek (פארק המסורק), Givat Koach (גבעת כ״ח), Tzora (צרעה), Ben Shemen (בן שמן), Park Ofer (פארק עופר), Ramat Hanadiv (רמת הנדיב), Goren Park (גורן), Carmel singletracks (כרמל), Mount Tabor (תבור), Bezet (בצת), Yatir Forest (יתיר), Park Britannia (בריטניה), Ein Hashofet (עין השופט). Outside Israel use trails relevant to that country.
 
 RULES:
 1. Always give 3 REAL named routes — never invent.
@@ -69,10 +52,12 @@ RULES:
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4">
         <div className="card">
-          <button onClick={getLocation} className="btn-ghost !py-2 text-sm">
-            <Compass className="h-4 w-4" /> {coords ? t('road.refresh') : t('road.useStart')}
-          </button>
-          {coords && <p className="mt-2 text-xs text-slate-500">📍 {locName || `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`}</p>}
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500">📍 {loading ? '…' : (locName || (coords ? `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}` : '—'))}</p>
+            <button onClick={refresh} className="btn-ghost !py-1.5 text-xs">
+              <Compass className="h-3 w-3" /> {t('road.refresh')}
+            </button>
+          </div>
 
           <div className="mt-4 grid gap-3">
             <Field label={t('bike.distance')}>
@@ -97,7 +82,7 @@ RULES:
             </Field>
           </div>
 
-          <button onClick={findRoute} className="btn-primary mt-4 w-full">
+          <button onClick={findRoute} disabled={!coords} className="btn-primary mt-4 w-full disabled:opacity-50">
             <Bike className="h-4 w-4" /> {t('bike.findRoute')}
           </button>
         </div>
