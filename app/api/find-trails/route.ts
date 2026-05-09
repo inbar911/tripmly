@@ -180,11 +180,15 @@ export async function POST(req: Request) {
     if (!candidates.length) return NextResponse.json({ reply: lang === 'he' ? 'לא הצלחתי למצוא מועמדים. נסה שוב.' : 'No candidates found. Try again.' });
 
     const enriched: Verified[] = [];
+    const debug: any[] = [];
     await Promise.all(candidates.map(async (c) => {
-      const geo = await geocode(c.search_query);
-      if (!geo) return;
+      let geo = await geocode(c.search_query);
+      if (!geo) geo = await geocode(`${c.area}, Israel`);
+      if (!geo) geo = await geocode(`${c.name}, ${c.area}, Israel`);
+      if (!geo) { debug.push({ name: c.name, query: c.search_query, area: c.area, geo: null }); return; }
       const route = await drivingRoute(coords, geo);
-      if (!route) return;
+      if (!route) { debug.push({ name: c.name, geo, route: null }); return; }
+      debug.push({ name: c.name, geo, drive_km: route.km });
       enriched.push({ ...c, lat: geo.lat, lng: geo.lng, drive_km: route.km, drive_min: route.min });
     }));
 
@@ -193,7 +197,7 @@ export async function POST(req: Request) {
     const top = inRange.slice(0, 3);
 
     const markdown = buildMarkdown(top, mode, { ...filters, coords }, lang);
-    return NextResponse.json({ reply: markdown, count: top.length, totalCandidates: candidates.length });
+    return NextResponse.json({ reply: markdown, count: top.length, totalCandidates: candidates.length, debug });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
   }
