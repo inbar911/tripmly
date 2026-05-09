@@ -5,6 +5,15 @@ import ChatBot from './ChatBot';
 import { useI18n } from './I18nProvider';
 import { useLocation } from './LocationProvider';
 
+const RADIUS_OPTIONS: { value: number; key: string }[] = [
+  { value: 5, key: 'bike.r.5' },
+  { value: 15, key: 'bike.r.15' },
+  { value: 30, key: 'bike.r.30' },
+  { value: 50, key: 'bike.r.50' },
+  { value: 100, key: 'bike.r.100' },
+  { value: 9999, key: 'bike.r.any' }
+];
+
 export default function HikePlanner() {
   const { t, lang } = useI18n();
   const { coords, city, country, refresh, loading } = useLocation();
@@ -12,8 +21,13 @@ export default function HikePlanner() {
   const [distance, setDistance] = useState(8);
   const [difficulty, setDifficulty] = useState<'easy' | 'med' | 'hard' | 'epic'>('easy');
   const [scenery, setScenery] = useState<'nature' | 'forest' | 'desert' | 'mountain' | 'water' | 'urban'>('nature');
+  const [radius, setRadius] = useState<number>(50);
   const [chatKey, setChatKey] = useState(0);
   const [autoMsg, setAutoMsg] = useState<string | undefined>();
+
+  const radiusLabel = lang === 'he'
+    ? (radius >= 9999 ? 'בכל מקום בארץ' : `עד ${radius} ק״מ ממיקומי`)
+    : (radius >= 9999 ? 'anywhere in country' : `within ${radius} km of me`);
 
   function findRoute() {
     const sceneryLabel = lang === 'he'
@@ -23,55 +37,67 @@ export default function HikePlanner() {
       ? { easy: 'קל / משפחתי', med: 'בינוני', hard: 'קשה', epic: 'אפי / כל היום' }[difficulty]
       : { easy: 'easy / family', med: 'medium', hard: 'hard', epic: 'epic / full-day' }[difficulty];
     const prompt = lang === 'he'
-      ? `חפש לי 3 מסלולי טיול ברגל אמיתיים בקרבת ${locName || 'מיקומי'} (קואורדינטות ${coords?.lat}, ${coords?.lng}). נוף: ${sceneryLabel}, אורך: ~${distance} ק״מ, רמת קושי: ${diffLabel}.
+      ? `חפש לי 3 מסלולי הליכה מסומנים רשמית ${radiusLabel}. מיקומי: ${locName || 'לא ידוע'} (${coords?.lat}, ${coords?.lng}). נוף: ${sceneryLabel}, אורך: ~${distance} ק״מ, רמת קושי: ${diffLabel}.
 
-חיפוש מעמיק באתרי קקל (kkl.org.il), Israelhiking (israelhiking.osm.org.il), שביל ישראל, רשות הטבע והגנים (parks.org.il), Tiuli, AllTrails. לכל מסלול:
-- שם רשמי
-- מיקום (גן לאומי / יער / שמורה)
-- אורך אמיתי בק״מ
-- ערמת גובה אמיתית במטרים
-- זמן הליכה משוער
-- רמת קושי לפי המקור
-- סוג מסלול (לולאה/הלוך-חזור/חציה)
-- מקורות מים, צל, נגישות לרכב
-- תיאור קצר
-- [📍 מפות](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes) לנקודת התחלה
+חשוב: רק מסלולים **מסומנים רשמית** (סימון שבילים אדום/כחול/ירוק/שחור של החברה להגנת הטבע, מסלולי קקל, מסלולי גן לאומי, או שביל ישראל). לא מסלולים אקראיים.
 
-תמצית בטבלאות מרקדאון. רק נתונים מאומתים.`
-      : `Find me 3 real hiking routes near ${locName || 'my location'} (${coords?.lat}, ${coords?.lng}). Scenery: ${sceneryLabel}, distance ~${distance}km, difficulty ${diffLabel}.
+חפש בקקל (kkl.org.il), Israelhiking, parks.org.il (רט"ג), שביל ישראל, Tiuli, AllTrails. לכל מסלול:
+- שם רשמי + צבע סימון
+- אזור (גן לאומי / יער / שמורה)
+- **מרחק נסיעה ממיקומי** (חייב להיות בתוך הטווח)
+- אורך אמיתי בק״מ + ערמת גובה אמיתית
+- זמן הליכה משוער + רמת קושי
+- מים בדרך, צל, גישה ברכב
+- [📍 מפות](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes)
 
-Search KKL, Israelhiking, Israel National Trail, parks.org.il, Tiuli, AllTrails. For each:
-- Official name
-- Location (national park / forest / reserve)
-- Real distance (km)
-- Real elevation gain (m)
-- Estimated walking time
-- Source-rated difficulty
-- Loop / out-and-back / point-to-point
-- Water sources, shade, car access
-- Short description
-- [📍 Maps](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes) for trailhead
+דבר בעברית טבעית כמו חבר. רק נתונים מאומתים.`
+      : `Find me 3 OFFICIALLY MARKED hiking trails ${radiusLabel}. My location: ${locName || 'unknown'} (${coords?.lat}, ${coords?.lng}). Scenery: ${sceneryLabel}, length ~${distance}km, difficulty ${diffLabel}.
 
-Markdown tables. Verified data only.`;
+CRITICAL: Only **officially marked trails** (color-blazed by Israeli SPNI: red/blue/green/black, KKL marked routes, national park routes, or Israel National Trail). NOT random unmarked paths.
+
+Search kkl.org.il, israelhiking, parks.org.il, Israel National Trail, Tiuli, AllTrails. For each:
+- Official name + blaze color
+- Area (national park / forest / reserve)
+- **Driving distance from my location** (must fit radius)
+- Real distance + real elevation gain
+- Walking time + source-rated difficulty
+- Water, shade, car access
+- [📍 Maps](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes)
+
+Talk casually like a friend. Verified data only.`;
     setAutoMsg(prompt);
     setChatKey(k => k + 1);
   }
 
-  const sysPrompt = `You are Trip.ly's hiking expert with web search. User is in ${locName || 'unknown location'} (${coords?.lat}, ${coords?.lng}).
+  const sysPrompt = `You are a knowledgeable Israeli hiking buddy with years of trail experience. The user is in ${locName || 'unknown location'} (${coords?.lat}, ${coords?.lng}). Search radius preference: ${radiusLabel}.
 
-USE GOOGLE SEARCH to find real, verified hiking trails. Sources: kkl.org.il, israelhiking.osm.org.il, parks.org.il, Israel National Trail, Tiuli, AllTrails, Komoot.
+USE GOOGLE SEARCH for verified, OFFICIALLY MARKED hiking trails only.
+- Israeli marked trails use color blazes: red (אדום), blue (כחול), green (ירוק), black (שחור) — issued by SPNI / החברה להגנת הטבע.
+- Other valid sources: KKL marked routes, רשות הטבע והגנים (parks.org.il), שביל ישראל / Israel National Trail, Tiuli, Israelhiking.osm.org.il.
+- NEVER recommend unmarked or "off-piste" routes.
+
+CRITICAL — RADIUS FILTERING:
+- Calculate driving distance from user's coords to each trailhead.
+- ONLY suggest trails within ${radius >= 9999 ? 'the entire country' : `${radius} km driving distance`}.
+- Show driving distance clearly ("~30 ק״מ ממך" / "~30 km from you").
+
+PERSONALITY:
+- Talk like a friend who hikes a lot — warm, casual, in flowing natural Hebrew or English.
+- Use contractions, exclamations, gentle slang. Avoid stiff bullet-list-only replies in casual conversation.
+- Remember and reference what the user said earlier in this conversation. Build on it.
+- Skip robotic phrases like "Here are 3 routes:" — instead say something like "תקשיב, מצאתי לך משהו שווה" or "okay so I think you'll love this".
+- Ask follow-ups when natural ("רוצה משהו עם נחל בדרך?" / "want something with a stream?").
 
 RULES:
-1. NEVER invent trails or numbers. Cross-reference 2+ sources before stating distance/elevation/time.
-2. Include real numbers and source-rated difficulty.
-3. Note water availability, shade, car/bus access.
-4. Markdown table or clear bullets per route.
-5. Always add [📍 ${lang === 'he' ? 'מפות' : 'Maps'}](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes) deep-links for trailhead.
-6. Reply in ${lang === 'he' ? 'Hebrew (עברית)' : 'English'}.`;
+1. NEVER invent. Cross-reference 2+ sources.
+2. Real distance (km), elevation gain (m), source-rated difficulty, marking color.
+3. Note water sources, shade level, car/bus access.
+4. For each trail: [📍 ${lang === 'he' ? 'מפות' : 'Maps'}](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes).
+5. Reply in ${lang === 'he' ? 'natural conversational Hebrew' : 'natural conversational English'}.`;
 
   const initialMsg = lang === 'he'
-    ? `מסלולי הליכה מאומתים בסביבת **${locName || 'מיקומך'}**. כווננו פרמטרים ולחצו "מצא לי מסלול" — אחפש בקקל, רשות הטבע והגנים, Israelhiking ואחזיר נתונים מדויקים.`
-    : `Verified hiking trails near **${locName || 'your location'}**. Tune parameters and click "Find route" — I'll search KKL, parks.org.il, Israelhiking and return accurate data.`;
+    ? `יו, מה שלומך 🥾 אני מכיר את האזור של **${locName || 'מיקומך'}** טוב. כוונן את הפילטרים (כמה רחוק אתה מוכן לנסוע, איזה נוף, רמה) — או פשוט תכתוב לי מה בא לך לראות היום, ואני אמצא לך מסלולים מסומנים רשמית.`
+    : `Hey there 🥾 I know the area around **${locName || 'your location'}**. Tune the filters (how far you'll drive, what scenery, what level) — or just tell me what you feel like seeing today, and I'll find officially marked trails.`;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -85,6 +111,11 @@ RULES:
           </div>
 
           <div className="mt-4 grid gap-3">
+            <Field label={t('bike.radius')}>
+              <select className="input" value={radius} onChange={(e) => setRadius(Number(e.target.value))}>
+                {RADIUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(o.key as any)}</option>)}
+              </select>
+            </Field>
             <Field label={t('hike.distance')}>
               <input type="number" min={1} max={50} className="input" value={distance} onChange={(e) => setDistance(Math.max(1, Math.min(50, Number(e.target.value) || 8)))} />
             </Field>
@@ -111,7 +142,7 @@ RULES:
           <button onClick={findRoute} disabled={!coords} className="btn-primary mt-4 w-full disabled:opacity-50">
             <Footprints className="h-4 w-4" /> {t('hike.findRoute')}
           </button>
-          <p className="mt-2 text-center text-[10px] text-slate-500">🌐 {lang === 'he' ? 'חיפוש מעמיק בקקל, רשות הטבע והגנים, Israelhiking' : 'Deep search across KKL, INPA, Israelhiking'}</p>
+          <p className="mt-2 text-center text-[10px] text-slate-500">🌐 {lang === 'he' ? 'רק שבילים מסומנים רשמית · קקל, רט"ג, שביל ישראל' : 'Only officially marked trails · KKL, INPA, INT'}</p>
         </div>
       </div>
 
@@ -121,7 +152,7 @@ RULES:
         initialAssistantMessage={initialMsg}
         autoSendMessage={autoMsg}
         useSearch={true}
-        context={{ location: locName, coords, distance, difficulty, scenery }}
+        context={{ location: locName, coords, distance, difficulty, scenery, radiusKm: radius }}
         height={620}
       />
     </div>

@@ -14,8 +14,8 @@ export async function POST(req: Request) {
     if (!apiKey) return NextResponse.json({ reply: '', error: 'Missing GEMINI_API_KEY' }, { status: 500 });
 
     const langInstruction = lang === 'he'
-      ? '\n\nReply in Hebrew (עברית). Concise, no preamble.'
-      : '\n\nReply in English. Concise, no preamble.';
+      ? '\n\nReply in natural, conversational Hebrew (עברית) — like a friend talking, not a corporate bot. Use natural flow, contractions, occasional exclamations. Remember the conversation context and reference earlier messages when relevant. No robotic preambles.'
+      : '\n\nReply in natural, conversational English — like a friend talking, not a corporate bot. Use natural flow, contractions, occasional exclamations. Remember the conversation context and reference earlier messages when relevant. No robotic preambles.';
     const sys = (context ? `${system}\n\nContext:\n${JSON.stringify(context)}` : system) + langInstruction;
 
     const contents = messages.map((m: any) => ({
@@ -27,8 +27,8 @@ export async function POST(req: Request) {
       systemInstruction: { parts: [{ text: sys }] },
       contents,
       generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: useSearch ? 1200 : 500,
+        temperature: 0.85,
+        maxOutputTokens: useSearch ? 2200 : 1000,
         thinkingConfig: { thinkingBudget: 0 }
       }
     };
