@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Compass, Bike } from 'lucide-react';
-import ChatBot from './ChatBot';
+import { Compass, Bike, Loader2 } from 'lucide-react';
+import ChatBot, { type ChatMessage } from './ChatBot';
 import { useI18n } from './I18nProvider';
 import { useLocation } from './LocationProvider';
 
@@ -23,76 +23,53 @@ export default function BikePlanner() {
   const [type, setType] = useState<'road' | 'gravel' | 'mtb' | 'single' | 'family'>('single');
   const [radius, setRadius] = useState<number>(30);
   const [chatKey, setChatKey] = useState(0);
-  const [autoMsg, setAutoMsg] = useState<string | undefined>();
+  const [presetMessages, setPresetMessages] = useState<ChatMessage[] | undefined>();
+  const [searching, setSearching] = useState(false);
 
-  const radiusLabel = lang === 'he'
-    ? (radius >= 9999 ? 'בכל מקום בארץ' : `עד ${radius} ק״מ ממיקומי`)
-    : (radius >= 9999 ? 'anywhere in country' : `within ${radius} km of me`);
-
-  function findRoute() {
-    const typeLabel = lang === 'he'
-      ? { road: 'כביש', gravel: 'גראבל', mtb: 'MTB שטח', single: 'סינגלטרק', family: 'שביל אופניים משפחתי' }[type]
-      : { road: 'road', gravel: 'gravel', mtb: 'MTB off-road', single: 'singletrack', family: 'family bike path' }[type];
-    const diffLabel = lang === 'he'
-      ? { easy: 'קל', med: 'בינוני', hard: 'קשה', epic: 'אפי' }[difficulty]
-      : { easy: 'easy', med: 'medium', hard: 'hard', epic: 'epic' }[difficulty];
-    const prompt = lang === 'he'
-      ? `חפש לי 3 מסלולי אופניים אמיתיים ${radiusLabel}. מיקומי: ${locName || 'לא ידוע'} (${coords?.lat}, ${coords?.lng}). סוג: ${typeLabel}, מרחק רכיבה: ~${distance} ק״מ, רמת קושי: ${diffLabel}.
-
-חיפוש מעמיק באתרי קקל (kkl.org.il), Israelhiking, MTB.co.il, Singletrack.co.il, Komoot, AllTrails. לכל מסלול:
-- שם רשמי
-- מיקום מדויק
-- **מרחק נסיעה ברכב מהמיקום שלי** (חייב להיות בתוך הטווח שביקשתי)
-- אורך מסלול בק״מ (אמיתי, מהמקור)
-- ערמת גובה במטרים (אמיתית)
-- רמת קושי לפי המקור
-- סוג מסלול (לולאה/הלוך-חזור)
-- תיאור קצר ותנאי שטח
-- [📍 מפות](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes)
-
-דבר בעברית טבעית, חברותית. אל תמציא — רק מה שמצאת.`
-      : `Find me 3 real bike routes ${radiusLabel}. My location: ${locName || 'unknown'} (${coords?.lat}, ${coords?.lng}). Type: ${typeLabel}, ride distance ~${distance}km, difficulty ${diffLabel}.
-
-Deep search KKL, Israelhiking, MTB.co.il, Singletrack.co.il, Komoot, AllTrails. For each:
-- Official name
-- Exact location
-- **Driving distance from my location** (must fit my requested radius)
-- Real distance, elevation, source-rated difficulty
-- Loop / out-and-back
-- Short description and terrain
-- [📍 Maps](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes)
-
-Talk casually like a friend. Don't invent — only verified data.`;
-    setAutoMsg(prompt);
-    setChatKey(k => k + 1);
+  async function findRoute() {
+    if (!coords) return;
+    setSearching(true);
+    const userText = lang === 'he'
+      ? `מצא לי 3 מסלולי ${ { road: 'כביש', gravel: 'גראבל', mtb: 'MTB', single: 'סינגלטרק', family: 'שביל אופניים משפחתי' }[type]} מאומתים, ${distance} ק״מ, ${ { easy: 'קל', med: 'בינוני', hard: 'קשה', epic: 'אפי' }[difficulty]}, ${radius >= 9999 ? 'בכל הארץ' : `עד ${radius} ק״מ ממני`}.`
+      : `Find me 3 verified ${type} routes, ${distance}km, ${difficulty} difficulty, ${radius >= 9999 ? 'anywhere in country' : `within ${radius} km of me`}.`;
+    try {
+      const res = await fetch('/api/find-trails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'bike',
+          coords,
+          filters: { location: locName, distance, difficulty, type, radiusKm: radius, coords },
+          lang
+        })
+      });
+      const data = await res.json();
+      const reply = data.reply || (data.error ? `⚠️ ${data.error}` : (lang === 'he' ? 'לא נמצאו מסלולים' : 'No trails found'));
+      setPresetMessages([
+        { role: 'user', content: userText },
+        { role: 'assistant', content: reply }
+      ]);
+      setChatKey(k => k + 1);
+    } catch (e: any) {
+      setPresetMessages([
+        { role: 'user', content: userText },
+        { role: 'assistant', content: `⚠️ ${e?.message || 'error'}` }
+      ]);
+      setChatKey(k => k + 1);
+    } finally {
+      setSearching(false);
+    }
   }
 
-  const sysPrompt = `You are an enthusiastic Israeli mountain biker friend, not a corporate bot. The user is in ${locName || 'unknown location'} (${coords?.lat}, ${coords?.lng}). Search radius preference: ${radiusLabel}.
+  const sysPrompt = `You are an Israeli mountain biker friend chatting with the user. The user is in ${locName} (${coords?.lat}, ${coords?.lng}).
 
-USE GOOGLE SEARCH to find real, verified bike trails. Sources: kkl.org.il, israelhiking.osm.org.il, MTB.co.il, Singletrack.co.il, Komoot, AllTrails, Strava heatmaps.
+The trails ABOVE in the conversation were found via verified data: real driving distances were computed using OpenStreetMap Routing (OSRM). Trust those numbers — they are accurate.
 
-CRITICAL — RADIUS FILTERING:
-- ALWAYS calculate the rough driving distance from user's coordinates to each suggested trailhead.
-- ONLY suggest trails within ${radius >= 9999 ? 'the entire country' : `${radius} km driving distance`}.
-- If a famous trail is outside the radius, mention it briefly but DON'T recommend it.
-- Show the driving distance clearly for each suggestion ("~25 ק״מ ממך" / "~25 km from you").
-
-PERSONALITY:
-- Talk like a real biking buddy: warm, casual, uses biker slang ("טראגן", "ירידה מטריפה", "סינגל מטיסה").
-- In Hebrew: speak in flowing natural Hebrew, not stiff formal text. Use contractions, exclamation marks where they fit naturally.
-- Pick up on what the user said earlier in the conversation. Remember their preferences. Reference past messages when relevant.
-- Don't repeat the same intro every reply.
-- Ask follow-up questions when it makes sense ("רוצה שאמצא משהו יותר טכני?").
-
-RULES:
-1. NEVER invent trails or numbers. Cross-reference 2+ sources.
-2. Real numbers: distance (km), elevation gain (m), source-rated difficulty.
-3. For each trail include [📍 ${lang === 'he' ? 'מפות' : 'Maps'}](https://www.google.com/maps/search/?api=1&query=NAME) [🚗 Waze](https://waze.com/ul?q=NAME&navigate=yes).
-4. Reply in ${lang === 'he' ? 'Hebrew (עברית) — natural conversational Hebrew' : 'English — natural conversational English'}.`;
+For follow-up questions: discuss the trails naturally, suggest variations, talk about gear, conditions, what to pack. Keep it casual like a friend. Reply in ${lang === 'he' ? 'natural Hebrew (עברית)' : 'natural English'}. Don't repeat the trail list — the user can see it.`;
 
   const initialMsg = lang === 'he'
-    ? `מה הולך! 🚵 אני יודע שאתה ב**${locName || 'מיקומך'}**. כוונן את הפילטרים — כולל כמה רחוק אתה מוכן לנסוע — ואני אביא לך 3 מסלולים אמיתיים ומאומתים. אפשר גם פשוט לכתוב לי במילים מה אתה מחפש.`
-    : `What's up! 🚵 You're in **${locName || 'your area'}**. Tune the filters — including how far you're willing to drive — and I'll bring 3 verified routes. You can also just tell me in your own words what you're after.`;
+    ? `מה הולך 🚵 כוונן את הפילטרים — כולל מרחק נסיעה — ולחץ "מצא לי מסלול". אני אחפש מועמדים, אחשב נסיעה אמיתית בזמן אמת ב-OSM ואתן לך 3 הכי קרובים שמתאימים.`
+    : `Hey 🚵 Tune filters — including how far you'll drive — and click "Find me a route". I'll search candidates, compute REAL driving times via OSM Routing, and return 3 verified picks within your radius.`;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -133,10 +110,11 @@ RULES:
             </Field>
           </div>
 
-          <button onClick={findRoute} disabled={!coords} className="btn-primary mt-4 w-full disabled:opacity-50">
-            <Bike className="h-4 w-4" /> {t('bike.findRoute')}
+          <button onClick={findRoute} disabled={!coords || searching} className="btn-primary mt-4 w-full disabled:opacity-50">
+            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bike className="h-4 w-4" />}
+            {searching ? (lang === 'he' ? 'מחשב מרחקי נסיעה אמיתיים…' : 'Computing real driving distances…') : t('bike.findRoute')}
           </button>
-          <p className="mt-2 text-center text-[10px] text-slate-500">🌐 {lang === 'he' ? 'חיפוש מעמיק באתרי קקל, Israelhiking, MTB' : 'Deep search across KKL, Israelhiking, MTB'}</p>
+          <p className="mt-2 text-center text-[10px] text-slate-500">🛰️ {lang === 'he' ? 'מרחקי נסיעה אמיתיים מ-OpenStreetMap' : 'Real driving distances from OpenStreetMap'}</p>
         </div>
       </div>
 
@@ -144,8 +122,7 @@ RULES:
         key={`${chatKey}-${locName}`}
         systemPrompt={sysPrompt}
         initialAssistantMessage={initialMsg}
-        autoSendMessage={autoMsg}
-        useSearch={true}
+        presetMessages={presetMessages}
         context={{ location: locName, coords, distance, difficulty, type, radiusKm: radius }}
         height={620}
       />

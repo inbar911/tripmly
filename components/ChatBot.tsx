@@ -13,7 +13,8 @@ export default function ChatBot({
   context,
   height = 560,
   autoSendMessage,
-  useSearch = false
+  useSearch = false,
+  presetMessages
 }: {
   systemPrompt: string;
   initialAssistantMessage: string;
@@ -21,10 +22,15 @@ export default function ChatBot({
   height?: number;
   autoSendMessage?: string;
   useSearch?: boolean;
+  presetMessages?: ChatMessage[];
 }) {
   const { t, lang } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>(
-    autoSendMessage ? [] : [{ role: 'assistant', content: initialAssistantMessage }]
+    presetMessages && presetMessages.length
+      ? presetMessages
+      : autoSendMessage
+        ? []
+        : [{ role: 'assistant', content: initialAssistantMessage }]
   );
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
