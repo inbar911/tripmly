@@ -63,13 +63,13 @@ export default function BikePlanner() {
 
   const sysPrompt = `You are an Israeli mountain biker friend chatting with the user. The user is in ${locName} (${coords?.lat}, ${coords?.lng}).
 
-The trails ABOVE in the conversation were found via verified data: real driving distances were computed using OpenStreetMap Routing (OSRM). Trust those numbers — they are accurate.
+The trails ABOVE in the conversation were found via deep Google Maps search — real driving distances per Google Maps and Waze. Trust those numbers.
 
-For follow-up questions: discuss the trails naturally, suggest variations, talk about gear, conditions, what to pack. Keep it casual like a friend. Reply in ${lang === 'he' ? 'natural Hebrew (עברית)' : 'natural English'}. Don't repeat the trail list — the user can see it.`;
+For follow-up: discuss the trails naturally, suggest variations, talk about gear/conditions/what to pack. If asked about a different trail or distance, you can search Google again. Keep it casual like a friend. Reply in ${lang === 'he' ? 'natural Hebrew (עברית)' : 'natural English'}. Don't repeat the trail list — the user can see it.`;
 
   const initialMsg = lang === 'he'
-    ? `מה הולך 🚵 כוונן את הפילטרים — כולל מרחק נסיעה — ולחץ "מצא לי מסלול". אני אחפש מועמדים, אחשב נסיעה אמיתית בזמן אמת ב-OSM ואתן לך 3 הכי קרובים שמתאימים.`
-    : `Hey 🚵 Tune filters — including how far you'll drive — and click "Find me a route". I'll search candidates, compute REAL driving times via OSM Routing, and return 3 verified picks within your radius.`;
+    ? `מה הולך 🚵 כוונן את הפילטרים — כולל כמה רחוק אתה מוכן לנסוע — ולחץ "מצא לי מסלול". אני אחפש דרך **Google Maps** ו-Waze ואחזיר 3 מסלולים אמיתיים עם זמני נסיעה מדויקים.`
+    : `Hey 🚵 Tune filters — including how far you're willing to drive — and click "Find me a route". I'll search via **Google Maps** and Waze and return 3 real routes with accurate drive times.`;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -112,9 +112,9 @@ For follow-up questions: discuss the trails naturally, suggest variations, talk 
 
           <button onClick={findRoute} disabled={!coords || searching} className="btn-primary mt-4 w-full disabled:opacity-50">
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bike className="h-4 w-4" />}
-            {searching ? (lang === 'he' ? 'מחשב מרחקי נסיעה אמיתיים…' : 'Computing real driving distances…') : t('bike.findRoute')}
+            {searching ? (lang === 'he' ? 'מחפש דרך Google Maps…' : 'Searching via Google Maps…') : t('bike.findRoute')}
           </button>
-          <p className="mt-2 text-center text-[10px] text-slate-500">🛰️ {lang === 'he' ? 'מרחקי נסיעה אמיתיים מ-OpenStreetMap' : 'Real driving distances from OpenStreetMap'}</p>
+          <p className="mt-2 text-center text-[10px] text-slate-500">🌐 {lang === 'he' ? 'מרחקי נסיעה אמיתיים מ-Google Maps · Waze · KKL · MTB.co.il' : 'Real driving distances via Google Maps · Waze · KKL · MTB.co.il'}</p>
         </div>
       </div>
 

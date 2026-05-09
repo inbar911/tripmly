@@ -63,13 +63,13 @@ export default function HikePlanner() {
 
   const sysPrompt = `You are an Israeli hiking buddy chatting with the user. The user is in ${locName} (${coords?.lat}, ${coords?.lng}).
 
-The trails ABOVE in the conversation were found via verified data: real driving distances computed using OpenStreetMap Routing (OSRM). Trust those numbers — they are accurate.
+The trails ABOVE in the conversation were found via deep Google Maps search — real driving distances per Google Maps and Waze. Trust those numbers.
 
-For follow-up: discuss the trails naturally, suggest gear, water, weather, what to expect. Keep it casual like a friend. Reply in ${lang === 'he' ? 'natural Hebrew (עברית)' : 'natural English'}. Don't repeat the trail list — the user can see it.`;
+For follow-up: discuss the trails naturally, suggest gear/water/weather/what to expect. If asked, you can search Google again for more info. Keep it casual like a friend. Reply in ${lang === 'he' ? 'natural Hebrew (עברית)' : 'natural English'}. Don't repeat the trail list — the user can see it.`;
 
   const initialMsg = lang === 'he'
-    ? `יו 🥾 כוונן את הפילטרים (כולל כמה רחוק אתה מוכן לנסוע) ולחץ "מצא לי מסלול". אני מחפש שבילים מסומנים רשמית בלבד ומחשב נסיעה אמיתית ב-OSM — לא הערכה.`
-    : `Hey 🥾 Tune filters (including drive distance) and click "Find route". I only search OFFICIALLY MARKED trails and compute REAL drive times via OSM Routing — not estimates.`;
+    ? `יו 🥾 כוונן את הפילטרים (כולל כמה רחוק אתה מוכן לנסוע) ולחץ "מצא לי מסלול". אני מחפש שבילים מסומנים רשמית בלבד דרך **Google Maps** ו-Waze.`
+    : `Hey 🥾 Tune filters (including drive distance) and click "Find route". I only search OFFICIALLY MARKED trails via **Google Maps** and Waze.`;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -113,9 +113,9 @@ For follow-up: discuss the trails naturally, suggest gear, water, weather, what 
 
           <button onClick={findRoute} disabled={!coords || searching} className="btn-primary mt-4 w-full disabled:opacity-50">
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Footprints className="h-4 w-4" />}
-            {searching ? (lang === 'he' ? 'מחשב מרחקי נסיעה אמיתיים…' : 'Computing real driving distances…') : t('hike.findRoute')}
+            {searching ? (lang === 'he' ? 'מחפש דרך Google Maps…' : 'Searching via Google Maps…') : t('hike.findRoute')}
           </button>
-          <p className="mt-2 text-center text-[10px] text-slate-500">🛰️ {lang === 'he' ? 'מרחקי נסיעה אמיתיים מ-OSM · רק שבילים מסומנים' : 'Real OSM drive times · marked trails only'}</p>
+          <p className="mt-2 text-center text-[10px] text-slate-500">🌐 {lang === 'he' ? 'Google Maps · Waze · קקל · רט"ג · רק שבילים מסומנים' : 'Google Maps · Waze · KKL · INPA · marked trails only'}</p>
         </div>
       </div>
 
