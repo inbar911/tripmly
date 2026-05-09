@@ -168,7 +168,7 @@ async function crossVerifyWithSearch(
 ${trailList}
 
 החזר תשובה ב-markdown במבנה הבא לכל מסלול:
-- כותרת **${'${i + 1}. שם המסלול}**
+- כותרת H3 עם מספור ושם המסלול
 - שורה אחת על האזור וצבע סימון
 - **🚗 זמן נסיעה אמיתי: X ק״מ · Y דקות** (מבוסס על המקורות הכי טובים שמצאת בחיפוש — OSM, גוגל מפס, ויז וכו')
 - אורך מסלול, ערמת גובה, קושי
@@ -183,7 +183,7 @@ Trails:
 ${trailList}
 
 Return markdown for each trail:
-- Heading **${'${i + 1}. trail name}**
+- H3 heading with numbered trail name
 - One line about area + blaze color
 - **🚗 Real drive time: X km · Y min** (based on the best sources you found via search — OSM, Google Maps, Waze, etc.)
 - Trail length, elevation, difficulty
