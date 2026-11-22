@@ -90,6 +90,8 @@ export default function ChatBot({
                   <div className="prose prose-sm max-w-none prose-a:text-brand-600 prose-a:underline prose-strong:text-slate-900 prose-p:my-1 prose-li:my-0.5 prose-ul:my-1 prose-ol:my-1 prose-h3:mt-2 prose-h3:mb-1 prose-h3:text-base">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
+                      disallowedElements={['img']}
+                      unwrapDisallowed
                       components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a> }}
                     >{m.content}</ReactMarkdown>
                   </div>
